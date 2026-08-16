@@ -4,20 +4,21 @@ const path = require('path');
 
 console.log('🚀 Starting ClarifyHealth build process...');
 
-// 1. Install frontend dependencies
-console.log('📦 Installing frontend dependencies...');
-execSync('npm install', { cwd: path.join(__dirname, 'frontend'), stdio: 'inherit' });
+const isInsideFrontend = fs.existsSync(path.join(__dirname, 'src')) && fs.existsSync(path.join(__dirname, 'vite.config.ts'));
+const frontendDir = isInsideFrontend ? __dirname : path.join(__dirname, 'frontend');
 
-// 2. Build frontend
+console.log('📦 Installing frontend dependencies in:', frontendDir);
+execSync('npm install --no-package-lock', { cwd: frontendDir, stdio: 'inherit' });
+
 console.log('🔨 Building frontend production bundle...');
-execSync('npm run build', { cwd: path.join(__dirname, 'frontend'), stdio: 'inherit' });
+execSync('npm run build', { cwd: frontendDir, stdio: 'inherit' });
 
-// 3. Copy frontend/dist to ./dist and ./public for universal hosting support
-const srcDist = path.join(__dirname, 'frontend', 'dist');
-const rootDist = path.join(__dirname, 'dist');
-const rootPublic = path.join(__dirname, 'public');
+const distSource = path.join(frontendDir, 'dist');
+const rootDist = isInsideFrontend ? path.join(__dirname, '..', 'dist') : path.join(__dirname, 'dist');
+const rootPublic = isInsideFrontend ? path.join(__dirname, '..', 'public') : path.join(__dirname, 'public');
 
 function copyFolderSync(from, to) {
+  if (!fs.existsSync(from)) return;
   if (!fs.existsSync(to)) {
     fs.mkdirSync(to, { recursive: true });
   }
@@ -32,12 +33,14 @@ function copyFolderSync(from, to) {
   });
 }
 
-if (fs.existsSync(srcDist)) {
-  console.log('📂 Copying frontend/dist to root /dist and /public...');
-  copyFolderSync(srcDist, rootDist);
-  copyFolderSync(srcDist, rootPublic);
-  console.log('✅ Build completed successfully and artifacts placed in dist/ and public/!');
+if (fs.existsSync(distSource)) {
+  console.log('📂 Syncing dist artifacts...');
+  if (!isInsideFrontend) {
+    copyFolderSync(distSource, rootDist);
+    copyFolderSync(distSource, rootPublic);
+  }
+  console.log('✅ Build completed successfully!');
 } else {
-  console.error('❌ Error: frontend/dist was not created.');
+  console.error('❌ Error: dist was not generated.');
   process.exit(1);
 }
