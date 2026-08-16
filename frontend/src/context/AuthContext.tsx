@@ -16,33 +16,50 @@ interface AuthContextType {
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const [user, setUser] = useState<User | null>(null);
+  const [user, setUser] = useState<User | null>(() => {
+    const saved = localStorage.getItem('clarify_user');
+    if (saved) {
+      try {
+        return JSON.parse(saved);
+      } catch {
+        return null;
+      }
+    }
+    return null;
+  });
+
   const [token, setToken] = useState<string | null>(() => localStorage.getItem('clarify_token'));
-  const [isLoading, setIsLoading] = useState<boolean>(true);
+  const [isLoading, setIsLoading] = useState<boolean>(false);
 
   useEffect(() => {
-    async function loadUser() {
-      if (token) {
+    async function verifyUser() {
+      const savedToken = localStorage.getItem('clarify_token');
+      if (savedToken) {
         try {
           const profile = await api.getProfile();
-          setUser(profile);
-        } catch {
-          // Invalid or expired token
-          localStorage.removeItem('clarify_token');
-          setToken(null);
-          setUser(null);
+          if (profile) {
+            setUser(profile);
+            localStorage.setItem('clarify_user', JSON.stringify(profile));
+          }
+        } catch (err: any) {
+          if (err.message?.includes('401') || err.message?.includes('Could not validate credentials')) {
+            localStorage.removeItem('clarify_token');
+            localStorage.removeItem('clarify_user');
+            setToken(null);
+            setUser(null);
+          }
         }
       }
-      setIsLoading(false);
     }
-    loadUser();
-  }, [token]);
+    verifyUser();
+  }, []);
 
   const login = async (email: string, password: string) => {
     setIsLoading(true);
     try {
       const res = await api.login({ email, password });
       localStorage.setItem('clarify_token', res.access_token);
+      localStorage.setItem('clarify_user', JSON.stringify(res.user));
       setToken(res.access_token);
       setUser(res.user);
     } finally {
@@ -55,6 +72,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     try {
       const res = await api.register({ email, password, full_name: fullName });
       localStorage.setItem('clarify_token', res.access_token);
+      localStorage.setItem('clarify_user', JSON.stringify(res.user));
       setToken(res.access_token);
       setUser(res.user);
     } finally {
@@ -67,6 +85,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     try {
       const res = await api.demoLogin();
       localStorage.setItem('clarify_token', res.access_token);
+      localStorage.setItem('clarify_user', JSON.stringify(res.user));
       setToken(res.access_token);
       setUser(res.user);
     } finally {
@@ -76,6 +95,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const logout = () => {
     localStorage.removeItem('clarify_token');
+    localStorage.removeItem('clarify_user');
     setToken(null);
     setUser(null);
   };

@@ -60,14 +60,70 @@ async function request<T>(endpoint: string, options: RequestInit = {}): Promise<
 function handleClientMockFallback<T>(endpoint: string, options: RequestInit = {}): T {
   console.warn(`[ClarifyHealth] Live backend proxy unavailable at ${API_BASE_URL}${endpoint}. Serving interactive client state.`);
 
-  // Auth Fallbacks
-  if (endpoint.startsWith('/auth/demo-login') || endpoint.startsWith('/auth/login-json') || endpoint.startsWith('/auth/register')) {
-    localStorage.setItem('clarify_token', MOCK_AUTH_RESPONSE.access_token);
-    localStorage.setItem('clarify_user', JSON.stringify(MOCK_USER));
+  // Demo Login Fallback
+  if (endpoint.startsWith('/auth/demo-login')) {
     return MOCK_AUTH_RESPONSE as unknown as T;
   }
 
+  // Register Fallback
+  if (endpoint.startsWith('/auth/register')) {
+    let regEmail = 'patient@clarifyhealth.ai';
+    let regName = 'Alex Morgan';
+    if (typeof options.body === 'string') {
+      try {
+        const parsed = JSON.parse(options.body);
+        if (parsed.email) regEmail = parsed.email;
+        if (parsed.full_name) regName = parsed.full_name;
+      } catch {}
+    }
+    const customUser: User = {
+      id: Date.now(),
+      email: regEmail,
+      full_name: regName,
+      is_active: true,
+      is_demo_user: false,
+      created_at: new Date().toISOString(),
+    };
+    const authRes: AuthResponse = {
+      access_token: 'client_token_' + Date.now(),
+      token_type: 'bearer',
+      user: customUser,
+    };
+    return authRes as unknown as T;
+  }
+
+  // Login JSON Fallback
+  if (endpoint.startsWith('/auth/login-json')) {
+    let loginEmail = 'patient@clarifyhealth.ai';
+    if (typeof options.body === 'string') {
+      try {
+        const parsed = JSON.parse(options.body);
+        if (parsed.email) loginEmail = parsed.email;
+      } catch {}
+    }
+    const loggedUser: User = {
+      id: 1,
+      email: loginEmail,
+      full_name: loginEmail.split('@')[0],
+      is_active: true,
+      is_demo_user: false,
+      created_at: new Date().toISOString(),
+    };
+    const authRes: AuthResponse = {
+      access_token: 'client_token_' + Date.now(),
+      token_type: 'bearer',
+      user: loggedUser,
+    };
+    return authRes as unknown as T;
+  }
+
   if (endpoint.startsWith('/auth/profile')) {
+    const saved = localStorage.getItem('clarify_user');
+    if (saved) {
+      try {
+        return JSON.parse(saved) as T;
+      } catch {}
+    }
     return MOCK_USER as unknown as T;
   }
 
