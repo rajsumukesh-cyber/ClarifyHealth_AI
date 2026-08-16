@@ -1,0 +1,27 @@
+services:
+  # 1. Frontend Web App (Static Site)
+  - type: web
+    name: clarifyhealth-frontend
+    runtime: static
+    buildCommand: node build.js
+    staticPublishPath: ./dist
+    routes:
+      - type: rewrite
+        source: /*
+        destination: /index.html
+    envVars:
+      - key: NODE_VERSION
+        value: 20.18.0
+
+  # 2. Backend FastAPI Server (Python Web Service)
+  - type: web
+    name: clarifyhealth-api
+    runtime: python
+    rootDir: backend
+    buildCommand: pip install -r requirements.txt email-validator
+    startCommand: uvicorn app.main:app --host 0.0.0.0 --port $PORT
+    envVars:
+      - key: SECRET_KEY
+        generateValue: true
+      - key: AI_PROVIDER
+        value: auto
