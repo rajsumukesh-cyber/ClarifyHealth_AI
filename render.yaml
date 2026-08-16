@@ -3,7 +3,7 @@ services:
   - type: web
     name: clarifyhealth-frontend
     runtime: static
-    buildCommand: node build.js
+    buildCommand: node build.cjs
     staticPublishPath: ./dist
     routes:
       - type: rewrite
