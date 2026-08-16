@@ -6,11 +6,8 @@
     "node": ">=18.0.0"
   },
   "scripts": {
-    "build": "node build.cjs"
-    
-  "dev": "vite",
-  
-  "preview": "vite preview"
-
+    "build": "node build.cjs",
+    "dev": "cd frontend && npm run dev",
+    "preview": "cd frontend && npm run preview"
   }
 }
